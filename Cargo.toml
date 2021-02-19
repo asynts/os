@@ -1,0 +1,13 @@
+[package]
+name = "picoos"
+version = "0.1.0"
+authors = ["Paul Scharnofske <asynts@gmail.com>"]
+edition = "2018"
+
+[build]
+target = "thumbv6m-none-eabi"
+
+[profile.release]
+debug = true
+lto = true
+codegen-units = 1
