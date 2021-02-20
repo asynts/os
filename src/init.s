@@ -4,8 +4,15 @@
     mov r0, #0x18
     lsl r0, #24
 
-    @ Prepare value.
+configure_CTRLR0:
     mov r1, #0
 
-    @ Write value to XIP_SSI_BASE.CTRLR0.
-    str r1, [r0, #0x00]
+    @ Set frame format to Quad-SPI.
+    or r1, #2
+
+    @ Set frame size to 32 bit.
+    mov r2, #32
+    lsl r2, #16
+    or r1, r1, r2
+
+    str r1, [r0, 0x00]
