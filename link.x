@@ -1,30 +1,28 @@
 MEMORY {
+    flash(rx) : ORIGIN = 0x10000000, LENGTH = 2M
     ram(rwx) : ORIGIN = 0x20000000, LENGTH = 256K
 }
 
 ENTRY(init);
 
 SECTIONS {
-    . = ORIGIN(ram);
+    . = ORIGIN(flash) + 0x100;
 
-    .text : { *(.text*) }
-
-    .data : { *(.data*) }
-
+    .text : {
+        *(.entry)
+        *(.text*)
+    }
     .rodata : { *(.rodata*) }
 
+    . = ORIGIN(ram);
+
+    .data : { *(.data*) }
     .bss : {
         __bss_start = .;
         *(.bss*)
         __bss_end = .;
     }
 
-    .init : {
-        . = ORIGIN(ram) + LENGTH(ram) - 256;
-        *(.init)
-
-        . = ORIGIN(ram) + LENGTH(ram) - 4;
-        init_crc32 = .;
-        LONG(0);
-    }
+    __ram_start = .;
+    __ram_end = ORIGIN(ram) + LENGTH(ram);
 }
