@@ -45,14 +45,16 @@ pub mod gpio {
     }
 }
 
-fn halt() -> ! {
+pub fn halt() -> ! {
     loop {
-        asm!("wfi");
+        unsafe {
+            asm!("wfi");
+        }
     }
 }
 
 #[panic_handler]
-fn panic(info: &core::panic::PanicInfo) -> ! {
+fn panic(_info: &core::panic::PanicInfo) -> ! {
     gpio::set_direction(gpio::Pin::StatusLed, gpio::Direction::Output);
     gpio::set_value(gpio::Pin::StatusLed, gpio::Value::High);
 
@@ -60,6 +62,6 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 }
 
 // #[entry]
-fn init() {
+pub fn init() -> !{
     halt();
 }
