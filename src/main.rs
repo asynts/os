@@ -61,7 +61,7 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
     halt();
 }
 
-// #[entry]
-pub fn init() -> !{
+#[export_name = "main"]
+pub fn main() -> ! {
     halt();
 }
