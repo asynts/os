@@ -12,3 +12,6 @@ panic = "abort"
 debug = true
 lto = true
 codegen-units = 1
+
+[build-dependencies]
+cc = "*"

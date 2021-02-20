@@ -1,7 +1,9 @@
 MEMORY {
-    flash(rwx) : ORIGIN = 0x10000000, LENGTH = 2M;
-    ram(rwx) : ORIGIN = 0x20000000, LENGTH = 256K;
+    flash(rwx) : ORIGIN = 0x10000000, LENGTH = 2M
+    ram(rwx) : ORIGIN = 0x20000000, LENGTH = 256K
 }
+
+ENTRY(init);
 
 SECTIONS {
     . = ORIGIN(ram);
@@ -18,12 +20,9 @@ SECTIONS {
         __bss_end = .;
     }
 
-    ASSERT(ABSOLUTE(.) <= ORIGIN(ram) + LENGTH(ram) - 256);
-
     . = ORIGIN(ram) + LENGTH(ram) - 256;
 
     .init : {
-        KEEP(*(.init));
-        ASSERT(ABSOLUTE(.) <= ORIGIN(ram) + LENGTH(ram));
+        *(.init)
     }
 }
