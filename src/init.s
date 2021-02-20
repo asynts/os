@@ -5,7 +5,7 @@ init:
     mov r0, #1
     lsl r0, #25
 
-    @ Prepare SIO_BASE address.
+    @ Prepare the SIO_BASE address.
     mov r1, #0xd0
     lsl r1, #24
 
