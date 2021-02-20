@@ -6,6 +6,22 @@ MEMORY {
 ENTRY(init);
 
 SECTIONS {
+    . = ORIGIN(flash);
+
+    .text : {
+        *(.entry)
+    }
+}
+
+/*
+MEMORY {
+    flash(rx) : ORIGIN = 0x10000000, LENGTH = 2M
+    ram(rwx) : ORIGIN = 0x20000000, LENGTH = 256K
+}
+
+ENTRY(init);
+
+SECTIONS {
     . = ORIGIN(flash) + 0x100;
 
     .text : {
@@ -26,3 +42,4 @@ SECTIONS {
     __ram_start = .;
     __ram_end = ORIGIN(ram) + LENGTH(ram);
 }
+*/
