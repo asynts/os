@@ -154,6 +154,8 @@ namespace Kernel
                      | M0PLUS_MPU_CTRL_HFNMIENA_RESET
                      | M0PLUS_MPU_CTRL_ENABLE_BITS;
 
+        // FIXME: Does the MPU become active imediatelly, or do we have to poll here?
+
         dbgln("[setup_mpu] Enabled MPU with {} regions", regions.size());
     }
 

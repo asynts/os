@@ -2,6 +2,9 @@
 
 #include <Std/Types.hpp>
 
+constexpr usize KiB = 1024;
+constexpr usize MiB = KiB * KiB;
+
 #ifndef TEST
 constexpr void* operator new(usize count, void* ptr)
 {
