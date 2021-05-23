@@ -39,6 +39,16 @@ union MPU_RASR {
     u32 raw;
 };
 
+union MPU_CTRL {
+    struct {
+        u32 enable : 1;
+        u32 hfnmiena : 1;
+        u32 privdefena : 1;
+        u32 reserved_1 : 29;
+    };
+    u32 raw;
+};
+
 static void dump_mpu()
 {
     dbgln("[dump_mpu]:");
@@ -48,22 +58,12 @@ static void dump_mpu()
     }
 }
 
-static void try_out_mpu()
+static void try_configure_mpu_1()
 {
-    auto *my_custom_region = new u8[2 * KiB];
-
-    dbgln("[try_out_mpu] Allocated memory for custom region at {}", my_custom_region);
-
-    my_custom_region += KiB - u32(my_custom_region) % KiB;
-
-    dbgln("[try_out_mpu] Aligned memory region is {}", my_custom_region);
-
-    // Disable MPU
     mpu_hw->ctrl = 0;
 
     dump_mpu();
 
-    //- Setup region for flash
     mpu_hw->rnr = 0;
 
     mpu_hw->rbar = 0x10000000;
@@ -85,41 +85,45 @@ static void try_out_mpu()
     mpu_hw->ctrl = 0 << 2  // Disable default map for privileged execution
                  | 0 << 1  // Disable MPU during HardFault/NMI
                  | 1 << 0; // Enable MPU
+}
 
-    // We crash immediatelly, when executing the next instruction
-    asm volatile("nop");
-    asm volatile("nop");
-    asm volatile("nop");
-    asm volatile("nop");
-    asm volatile("nop");
+static void try_configure_mpu_2()
+{
+    MPU_CTRL ctrl;
 
-    dbgln("[try_out_mpu] Just enabled the MPU, and still running");
+    ctrl = static_cast<MPU_CTRL>(mpu_hw->ctrl);
+    ctrl.enable = 0;
+    mpu_hw->ctrl = ctrl.raw;
 
-    u32 control;
-    asm volatile("mrs %0, control;"
-                 "isb;"
-        : "=r"(control));
+    mpu_hw->rnr = 0;
 
-    // We should be executing in privileged mode here
-    ASSERT((control & 0b01) == 0);
+    mpu_hw->rbar = 0x10000000;
 
-    asm volatile("ldr r0, [%0];"
-        :
-        : "r"(my_custom_region)
-        : "r0");
+    auto rasr = static_cast<MPU_RASR>(mpu_hw->rasr);
+    rasr.enable = 1;
+    rasr.size = 20;
+    rasr.srd = 0b11111111; // FIXME: Try 0b00000000
+    rasr.attrs_b = 1;
+    rasr.attrs_c = 1;
+    rasr.attrs_s = 1;
+    rasr.attrs_ap = 0b111;
+    rasr.attrs_xn = 0;
+    mpu_hw->rasr = rasr.raw;
 
-    dbgln("[try_out_mpu] We just read from the custom region and we are stull running");
+    ctrl = static_cast<MPU_CTRL>(mpu_hw->ctrl);
+    ctrl.enable = 1;
+    ctrl.hfnmiena = 0;
+    ctrl.privdefena = 0;
+    mpu_hw->ctrl = ctrl.raw;
+}
 
-    asm volatile("str r0, [%0];"
-        :
-        : "r"(my_custom_region)
-        : "r0");
+static void try_out_mpu()
+{
+    // try_configure_mpu_1();
 
-    dbgln("[try_out_mpu] We just wrote to the custom region and it worked!");
-
-    mpu_hw->ctrl = 0;
-
-    dbgln("[try_out_mpu] done, disabled mpu");
+    // FIXME: We crash during boot in crt0 (SDK) if this line is left
+    //        here, there is something weird going on.
+    try_configure_mpu_2();
 }
 
 int main()
