@@ -51,11 +51,15 @@ union MPU_CTRL {
 
 static void dump_mpu()
 {
-    dbgln("[dump_mpu]:");
+    u32 rnr = mpu_hw->rnr;
+
+    dbgln("[dump_mpu]: CTRL={} RNR={}", (u32)mpu_hw->ctrl, rnr);
     for (size_t i = 0; i < 8; ++i) {
         mpu_hw->rnr = i;
         dbgln("  [{}] RASR={} RBAR={}", i, (u32)mpu_hw->rasr, (u32)mpu_hw->rbar);
     }
+
+    mpu_hw->rnr = rnr;
 }
 
 static void try_configure_mpu_1()
@@ -145,14 +149,19 @@ static void try_configure_mpu_3()
 
     dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
 
+    dump_mpu();
+
     ctrl = static_cast<MPU_CTRL>(mpu_hw->ctrl);
     ctrl.enable = 0;
     mpu_hw->ctrl = ctrl.raw;
+
+    dump_mpu();
 
     dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
 
     ctrl = static_cast<MPU_CTRL>(mpu_hw->ctrl);
     ctrl.enable = 1;
+
     mpu_hw->ctrl = ctrl.raw;
 
     dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
