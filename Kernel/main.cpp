@@ -39,6 +39,15 @@ union MPU_RASR {
     u32 raw;
 };
 
+static void dump_mpu()
+{
+    dbgln("[dump_mpu]:");
+    for (size_t i = 0; i < 8; ++i) {
+        mpu_hw->rnr = i;
+        dbgln("  [{}] RASR={} RBAR={}", i, (u32)mpu_hw->rasr, (u32)mpu_hw->rbar);
+    }
+}
+
 static void try_out_mpu()
 {
     auto *my_custom_region = new u8[2 * KiB];
@@ -52,32 +61,26 @@ static void try_out_mpu()
     // Disable MPU
     mpu_hw->ctrl = 0;
 
-    for (size_t i = 0; i < 8; ++i) {
-        mpu_hw->rnr = i;
-        dbgln("RASR for region {}: {}", i, (u32)mpu_hw->rasr);
-    }
+    dump_mpu();
 
     //- Setup region for flash
     mpu_hw->rnr = 0;
+
+    mpu_hw->rbar = 0x10000000;
+
     auto rasr_0 = static_cast<MPU_RASR>(mpu_hw->rasr);
-    dbgln("Read RASR={}", rasr_0.raw);
-
-    // FIXME: Technically, we are not allowed to do this because some stuff is reserved
-    rasr_0.raw = 0;
-
-    rasr_0.attrs_xn = 0;      // Permit execution
-    rasr_0.attrs_ap = 0b011;  // Full access (Incorrect)
-
-    rasr_0.attrs_tex = 0b000; // Strongly-ordered (Incorrect)
-    rasr_0.attrs_c = 0;
-    rasr_0.attrs_b = 0;
-
+    rasr_0.attrs_xn = 0;
+    rasr_0.attrs_ap = 0b111;
+    rasr_0.attrs_tex = 0b000;
+    rasr_0.attrs_c = 1;
+    rasr_0.attrs_b = 1;
+    rasr_0.attrs_s = 1;
     rasr_0.srd = 0b11111111;
     rasr_0.size = 20;
     rasr_0.enable = 1;
-
-    dbgln("Writing RASR={}", rasr_0.raw);
     mpu_hw->rasr = static_cast<u32>(rasr_0.raw);
+
+    dump_mpu();
 
     mpu_hw->ctrl = 0 << 2  // Disable default map for privileged execution
                  | 0 << 1  // Disable MPU during HardFault/NMI
