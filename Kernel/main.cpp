@@ -60,6 +60,8 @@ static void dump_mpu()
 
 static void try_configure_mpu_1()
 {
+    dbgln("[try_configure_mpu_1]");
+
     mpu_hw->ctrl = 0;
 
     dump_mpu();
@@ -89,15 +91,26 @@ static void try_configure_mpu_1()
 
 static void try_configure_mpu_2()
 {
+    dbgln("[try_configure_mpu_2]");
+
     MPU_CTRL ctrl;
 
     ctrl = static_cast<MPU_CTRL>(mpu_hw->ctrl);
     ctrl.enable = 0;
+
+    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+
     mpu_hw->ctrl = ctrl.raw;
+
+    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
 
     mpu_hw->rnr = 0;
 
+    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+
     mpu_hw->rbar = 0x10000000;
+
+    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
 
     auto rasr = static_cast<MPU_RASR>(mpu_hw->rasr);
     rasr.enable = 1;
@@ -110,19 +123,26 @@ static void try_configure_mpu_2()
     rasr.attrs_xn = 0;
     mpu_hw->rasr = rasr.raw;
 
+    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+
     ctrl = static_cast<MPU_CTRL>(mpu_hw->ctrl);
+
+    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+
     ctrl.enable = 1;
     ctrl.hfnmiena = 0;
     ctrl.privdefena = 0;
+
+    dbgln("CTRL={}", ctrl.raw);
     mpu_hw->ctrl = ctrl.raw;
+
+    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
 }
 
 static void try_out_mpu()
 {
     // try_configure_mpu_1();
 
-    // FIXME: We crash during boot in crt0 (SDK) if this line is left
-    //        here, there is something weird going on.
     try_configure_mpu_2();
 }
 
