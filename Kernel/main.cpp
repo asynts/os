@@ -161,6 +161,7 @@ static void try_configure_mpu_3()
 
     ctrl = static_cast<MPU_CTRL>(mpu_hw->ctrl);
     ctrl.enable = 1;
+    ctrl.privdefena = 1;
 
     dump_mpu();
     mpu_hw->ctrl = ctrl.raw;
