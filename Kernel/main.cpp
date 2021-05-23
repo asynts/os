@@ -20,6 +20,25 @@ void create_shell_process()
     Kernel::Process::create("/bin/Shell.elf", move(elf));
 }
 
+union MPU_RASR {
+    struct {
+        u32 enable : 1;
+        u32 size : 5;
+        u32 reserved_4 : 2;
+        u32 srd : 8;
+        u32 attrs_b : 1;
+        u32 attrs_c : 1;
+        u32 attrs_s : 1;
+        u32 attrs_tex : 3;
+        u32 reserved_3 : 2;
+        u32 attrs_ap : 3;
+        u32 reserved_2 : 1;
+        u32 attrs_xn : 1;
+        u32 reserved_1 : 3;
+    };
+    u32 raw;
+};
+
 static void try_out_mpu()
 {
     auto *my_custom_region = new u8[2 * KiB];
@@ -30,27 +49,46 @@ static void try_out_mpu()
 
     dbgln("[try_out_mpu] Aligned memory region is {}", my_custom_region);
 
+    // Disable MPU
     mpu_hw->ctrl = 0;
 
+    for (size_t i = 0; i < 8; ++i) {
+        mpu_hw->rnr = i;
+        dbgln("RASR for region {}: {}", i, (u32)mpu_hw->rasr);
+    }
+
+    //- Setup region for flash
     mpu_hw->rnr = 0;
+    auto rasr_0 = static_cast<MPU_RASR>(mpu_hw->rasr);
+    dbgln("Read RASR={}", rasr_0.raw);
 
-    mpu_hw->rbar = u32(my_custom_region);
+    // FIXME: Technically, we are not allowed to do this because some stuff is reserved
+    rasr_0.raw = 0;
 
-    mpu_hw->rasr =     1 << 28  // Disable instruction fetch
+    rasr_0.attrs_xn = 0;      // Permit execution
+    rasr_0.attrs_ap = 0b011;  // Full access (Incorrect)
 
-        // FIXME: This seems to be completely ignored!
-                 | 0b000 << 24  // Nobody can do anything
+    rasr_0.attrs_tex = 0b000; // Strongly-ordered (Incorrect)
+    rasr_0.attrs_c = 0;
+    rasr_0.attrs_b = 0;
 
-                 |      1 << 18 // Shareable (FIXME)
-                 |      1 << 19 // Cacheable (FIXME)
-                 |      1 << 20 // Bufferable (FIXME)
-                 | 0b1111 << 8  // Enable all subregions
-                 |      9 << 1  // 1 KiB = 2 ** 10 bytes
-                 |      1 << 0; // Enable region
+    rasr_0.srd = 0b11111111;
+    rasr_0.size = 20;
+    rasr_0.enable = 1;
 
-    mpu_hw->ctrl = 1 << 2  // Add default map for privileged execution
+    dbgln("Writing RASR={}", rasr_0.raw);
+    mpu_hw->rasr = static_cast<u32>(rasr_0.raw);
+
+    mpu_hw->ctrl = 0 << 2  // Disable default map for privileged execution
                  | 0 << 1  // Disable MPU during HardFault/NMI
                  | 1 << 0; // Enable MPU
+
+    // We crash immediatelly, when executing the next instruction
+    asm volatile("nop");
+    asm volatile("nop");
+    asm volatile("nop");
+    asm volatile("nop");
+    asm volatile("nop");
 
     dbgln("[try_out_mpu] Just enabled the MPU, and still running");
 

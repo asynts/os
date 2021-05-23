@@ -117,7 +117,9 @@ namespace Kernel
         context = next_thread.m_context.must();
         next_thread.m_context.clear();
 
+        dbgln("[Scheduler::schedule_next] Calling 'setup_mpu'");
         setup_mpu(next_thread.m_regions);
+        dbgln("[Scheduler::schedule_next] Returned from 'setup_mpu'");
 
         // Note. Writing to CONTROL.SPSEL is ignored by the processor in this context,
         // because we are running in handler mode

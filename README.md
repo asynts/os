@@ -68,6 +68,8 @@
     multiple processes.  This was mentioned in the DragonFlyBSD documentation,
     keyword: "inferiour"
 
+  - Don't build the tests if we can't run them anyways
+
 ### Helpful Documentation
 
 #### Stuff that I already looked at:
