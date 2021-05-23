@@ -145,26 +145,25 @@ static void try_configure_mpu_2()
 
 static void try_configure_mpu_3()
 {
-    MPU_CTRL ctrl;
-
-    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
-
     dump_mpu();
+
+    MPU_CTRL ctrl;
 
     ctrl = static_cast<MPU_CTRL>(mpu_hw->ctrl);
     ctrl.enable = 0;
     mpu_hw->ctrl = ctrl.raw;
 
-    dump_mpu();
-
-    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+    for (size_t i = 0; i < 8; ++i) {
+        mpu_hw->rnr = i;
+        mpu_hw->rbar = 0x00000000;
+        mpu_hw->rasr = 0;
+    }
 
     ctrl = static_cast<MPU_CTRL>(mpu_hw->ctrl);
     ctrl.enable = 1;
 
+    dump_mpu();
     mpu_hw->ctrl = ctrl.raw;
-
-    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
 }
 
 static void try_out_mpu()
