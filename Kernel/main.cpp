@@ -49,11 +49,25 @@ union MPU_CTRL {
     u32 raw;
 };
 
+union MPU_RBAR {
+    struct {
+        u32 region : 4;
+        u32 valid : 1;
+        u32 addr : 27;
+    };
+    u32 raw;
+};
+
+struct MPU_REGION {
+    MPU_RASR rasr;
+    MPU_RBAR rbar;
+};
+
 static void dump_mpu()
 {
     u32 rnr = mpu_hw->rnr;
 
-    dbgln("[dump_mpu]: CTRL={} RNR={}", (u32)mpu_hw->ctrl, rnr);
+    dbgln("[dump_mpu]: CTRL={} RNR={} TYPE={}", (u32)mpu_hw->ctrl, rnr, (u32)mpu_hw->type);
     for (size_t i = 0; i < 8; ++i) {
         mpu_hw->rnr = i;
         dbgln("  [{}] RASR={} RBAR={}", i, (u32)mpu_hw->rasr, (u32)mpu_hw->rbar);
@@ -159,12 +173,35 @@ static void try_configure_mpu_3()
         mpu_hw->rasr = 0;
     }
 
+    mpu_hw->rnr = 0;
+
+    // FIXME: It seems this address is provided incorrectly?
+    mpu_hw->rbar = 0x10000000;
+
+    auto rasr = static_cast<MPU_RASR>(mpu_hw->rasr);
+    rasr.attrs_ap = 0b111;
+    rasr.attrs_b = 1;
+    rasr.attrs_c = 1;
+    rasr.attrs_s = 1;
+    rasr.attrs_tex = 0b000;
+    rasr.attrs_xn = 1; // FIXME: This should prevent execution
+    rasr.size = 20;
+    rasr.enable = 1;
+    rasr.srd = 0b11111111;
+    mpu_hw->rasr = rasr.raw;
+
     ctrl = static_cast<MPU_CTRL>(mpu_hw->ctrl);
     ctrl.enable = 1;
     ctrl.privdefena = 1;
 
     dump_mpu();
     mpu_hw->ctrl = ctrl.raw;
+
+    // If we hit the breakpoint, that proves that we can execute from the flash
+    asm volatile("nop");
+    asm volatile("nop");
+    asm volatile("nop");
+    asm volatile("bkpt #0");
 }
 
 static void try_out_mpu()
