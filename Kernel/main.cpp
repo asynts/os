@@ -139,11 +139,30 @@ static void try_configure_mpu_2()
     dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
 }
 
+static void try_configure_mpu_3()
+{
+    MPU_CTRL ctrl;
+
+    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+
+    ctrl = static_cast<MPU_CTRL>(mpu_hw->ctrl);
+    ctrl.enable = 0;
+    mpu_hw->ctrl = ctrl.raw;
+
+    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+
+    ctrl = static_cast<MPU_CTRL>(mpu_hw->ctrl);
+    ctrl.enable = 1;
+    mpu_hw->ctrl = ctrl.raw;
+
+    dbgln("[{}] {}:{}", __PRETTY_FUNCTION__, __FILE__, __LINE__);
+}
+
 static void try_out_mpu()
 {
     // try_configure_mpu_1();
-
-    try_configure_mpu_2();
+    // try_configure_mpu_2();
+    try_configure_mpu_3();
 }
 
 int main()
