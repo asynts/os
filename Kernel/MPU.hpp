@@ -22,6 +22,7 @@ namespace Kernel::MPU
         };
         u32 raw;
     };
+    static_assert(sizeof(RASR) == 4);
 
     union CTRL {
         struct {
@@ -32,6 +33,7 @@ namespace Kernel::MPU
         };
         u32 raw;
     };
+    static_assert(sizeof(CTRL) == 4);
 
     union RBAR {
         struct {
@@ -41,6 +43,7 @@ namespace Kernel::MPU
         };
         u32 raw;
     };
+    static_assert(sizeof(RBAR) == 4);
 
     inline CTRL ctrl()
     {

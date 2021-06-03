@@ -54,47 +54,65 @@ namespace Kernel
             VERIFY(thread.m_regions.size() == 0);
 
             // Flash
-            thread.m_regions.append({
-                0x10'00'00'00,
-
-                // FIXME: We don't want to give the user access to the kernel image
-                Region::Size::M2,
-
-                Region::AllowInstructionFetch::Yes,
-                Region::Access::ByUserReadOnly,
-
-                // FIXME: No idea what this does
-                Region::Shareable::Yes,
-                Region::Cacheable::Yes,
-                Region::Bufferable::Yes,
+            thread.m_regions.append(Region {
+                .rbar = {
+                    .region = 0,
+                    .valid = 0,
+                    .addr = 0x10000000 >> 8,
+                },
+                .rasr = {
+                    .enable = 1,
+                    .size = 20,
+                    .srd = 0b00000000,
+                    .attrs_b = 1,
+                    .attrs_c = 1,
+                    .attrs_s = 1,
+                    .attrs_tex = 0b000,
+                    .attrs_ap = 0b111,
+                    .attrs_xn = 0,
+                },
             });
 
             // RAM
             VERIFY(__builtin_popcount(executable.m_writable_size) == 1);
             VERIFY(executable.m_writable_base % executable.m_writable_size == 0);
-            thread.m_regions.append({
-                executable.m_writable_base,
-                Region::enum_value_for_size(executable.m_writable_size),
-                Region::AllowInstructionFetch::No,
-                Region::Access::Full,
-
-                // FIXME: No idea what this does
-                Region::Shareable::Yes,
-                Region::Cacheable::Yes,
-                Region::Bufferable::Yes,
+            thread.m_regions.append(Region {
+                .rbar = {
+                    .region = 0,
+                    .valid = 0,
+                    .addr = executable.m_writable_base >> 8,
+                },
+                .rasr = {
+                    .enable = 1,
+                    .size = MPU::compute_size(executable.m_writable_size),
+                    .srd = 0b00000000,
+                    .attrs_b = 1,
+                    .attrs_c = 1,
+                    .attrs_s = 1,
+                    .attrs_tex = 0b000,
+                    .attrs_ap = 0b011,
+                    .attrs_xn = 1,
+                },
             });
 
             // ROM
-            thread.m_regions.append({
-                0x00'00'00'00,
-                Region::Size::K16,
-                Region::AllowInstructionFetch::Yes,
-                Region::Access::ByUserReadOnly,
-
-                // FIXME: No idea what this does
-                Region::Shareable::Yes,
-                Region::Cacheable::Yes,
-                Region::Bufferable::Yes,
+            thread.m_regions.append(Region {
+                .rbar = {
+                    .region = 0,
+                    .valid = 0,
+                    .addr = 0b00000000 >> 8,
+                },
+                .rasr = {
+                    .enable = 1,
+                    .size = 13,
+                    .svd = 0b00000000,
+                    .attrs_b = 1,
+                    .attrs_c = 1,
+                    .attrs_s = 1,
+                    .attrs_tex = 0b000,
+                    .attrs_ap = 0b111,
+                    .attrs_xn = 0,
+                },
             });
 
             dbgln("Handing over execution to process '{}' at {}", name, process.m_executable.must().m_entry);

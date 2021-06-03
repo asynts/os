@@ -8,6 +8,7 @@
 
 #include <Kernel/Process.hpp>
 #include <Kernel/SystemHandler.hpp>
+#include <Kernel/MPU.hpp>
 
 namespace Kernel
 {
@@ -61,119 +62,9 @@ namespace Kernel
     };
 
     // FIXME: When doing the whole page allocator thing, move this into a more sensible location
-    class Region {
-    public:
-        enum class AllowInstructionFetch : u32 {
-            Yes = 0 << 28,
-            No  = 1 << 28,
-
-            Mask = 1 << 28,
-        };
-
-        enum class Access : u32 {
-            ByKernelOnly   = 0b001 << 24,
-            ByUserReadOnly = 0b010 << 24,
-            Full           = 0b011 << 24,
-
-            Mask = 0b111 << 24,
-        };
-
-        enum class Shareable : u32 {
-            Yes = 1 << 18,
-            No  = 0 << 18,
-
-            Mask = 1 << 18,
-        };
-
-        enum class Cacheable : u32 {
-            Yes = 1 << 17,
-            No  = 0 << 17,
-
-            Mask = 1 << 17,
-        };
-
-        enum class Bufferable : u32 {
-            Yes = 1 << 16,
-            No  = 0 << 16,
-
-            Mask = 1 << 16,
-        };
-
-        enum class Size : u32 {
-            B256 = 7 << 1,
-            B512 = 8 << 1,
-            K1   = 9 << 1,
-            K2   = 10 << 1,
-            K4   = 11 << 1,
-            K8   = 12 << 1,
-            K16  = 13 << 1,
-            K32  = 14 << 1,
-            K64  = 15 << 1,
-            K128 = 16 << 1,
-            K256 = 17 << 1,
-            K512 = 18 << 1,
-            M1   = 19 << 1,
-            M2   = 20 << 1,
-
-            Mask = 0b11111 << 1,
-        };
-
-        static Size enum_value_for_size(usize size)
-        {
-            VERIFY(__builtin_popcount(size) == 1);
-
-            // FIXME: Move this into a helper function
-
-            // FIXME: Is this calculation correct? I would expect '31 - clz' but that doesn't work
-            u32 power = 30 - __builtin_clzl(size);
-            VERIFY(power <= 20);
-
-            dbgln("computed power {} (enum: {}) for size {}", power, power << 1, size);
-
-            return static_cast<Size>(power << 1);
-        }
-
-        static usize size_for_enum_value(Size size)
-        {
-            VERIFY(size != Size::Mask);
-            return 1 << ((static_cast<u32>(size) >> 1) + 1);
-        }
-
-        Region(
-            u32 base,
-            Size size,
-            AllowInstructionFetch allow_instruction_fetch,
-            Access access,
-            Shareable shareable,
-            Cacheable cacheable,
-            Bufferable bufferable)
-        {
-            dbgln("[Region::Region] base={} size(enum)={} size(u32)={}",
-                base,
-                static_cast<u32>(size),
-                size_for_enum_value(size));
-
-            VERIFY(base % size_for_enum_value(size) == 0);
-            m_region_base_address_register = base;
-
-            m_region_attribute_and_size_register = u32(size)
-                                                 | u32(allow_instruction_fetch)
-                                                 | u32(access)
-                                                 | u32(shareable)
-                                                 | u32(cacheable)
-                                                 | u32(bufferable);
-        }
-
-        u32 region_base_address_register() const
-        {
-            return m_region_base_address_register;
-        }
-
-        u32 region_attribute_and_size_register() const { return m_region_attribute_and_size_register; }
-
-    private:
-        u32 m_region_base_address_register;
-        u32 m_region_attribute_and_size_register;
+    struct Region {
+        MPU::RBAR rbar;
+        MPU::RASR rasr;
     };
 
     class Thread {

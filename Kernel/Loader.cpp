@@ -4,8 +4,7 @@
 #include <Kernel/Scheduler.hpp>
 #include <Kernel/GlobalMemoryAllocator.hpp>
 #include <Kernel/HandlerMode.hpp>
-
-#include <hardware/structs/mpu.h>
+#include <Kernel/MPU.hpp>
 
 namespace Kernel
 {
@@ -133,7 +132,9 @@ namespace Kernel
         // FIXME: We should never have uninitialized regions
         if (regions.size() == 0) {
             dbgln("[setup_mpu] Uninitialized regions, disabling MPU");
-            mpu_hw->ctrl = 0;
+            auto ctrl = MPU::ctrl();
+            ctrl.enable = 0;
+            MPU::set_ctrl(ctrl);
             return;
         }
 
@@ -141,13 +142,20 @@ namespace Kernel
 
         VERIFY(regions.size() <= 8);
         for (size_t index = 0; index < regions.size(); ++index) {
-            mpu_hw->rnr = index;
-            mpu_hw->rbar = regions[index].region_base_address_register();
-            mpu_hw->rasr = regions[index].region_attribute_and_size_register();
+            VERIFY(regions[index].rbar.raw & 0b11111 == 0);
+            mpu_hw->rbar = regions[index].rbar.raw | 1 << 4 | u32(index);
+
+            auto rasr_active = MPU::rasr();
+            auto rasr = regions[index].rasr;
+            rasr.reserved_1 = rasr_active.reserved_1;
+            rasr.reserved_2 = rasr_active.reserved_2;
+            rasr.reserved_3 = rasr_active.reserved_3;
+            rasr.reserved_4 = rasr_active.reserved_4;
+            MPU::set_rasr(rasr);
 
             dbgln("[setup_mpu] Initialized region region_base_address_register={} region_attribute_and_size_register={}",
-                regions[index].region_base_address_register(),
-                regions[index].region_attribute_and_size_register());
+                regions[index].rbar.raw,
+                regions[index].rasr.raw);
         }
 
         mpu_hw->ctrl = M0PLUS_MPU_CTRL_PRIVDEFENA_BITS
