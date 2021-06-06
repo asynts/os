@@ -22,6 +22,8 @@
 
   - Lookup devices via `devno`
 
+  - Setup MPU for supervisor mode
+
 #### Future tweaks (Build)
 
   - Alignment of `.stack`, `.heap` sections is lost in `readelf`
