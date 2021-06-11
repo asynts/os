@@ -88,7 +88,7 @@ namespace Kernel
             struct SystemCall {
                 u32 m_retval;
             } m_syscall;
-        };
+        } m_data;
     };
 
     class Thread {

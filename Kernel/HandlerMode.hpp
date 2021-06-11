@@ -22,7 +22,7 @@ namespace Kernel
     }
 
     template<typename Callback>
-    static void execute_in_handler_mode(Callback&& callback)
+    void execute_in_handler_mode(Callback&& callback)
     {
         auto wrapper = [callback = move(callback)]() mutable {
             callback();
@@ -40,5 +40,11 @@ namespace Kernel
         } else {
             wrapper();
         }
+    }
+
+    template<typename Callback>
+    void execute_in_thread_mode(Callback&& callback)
+    {
+        FIXME();
     }
 }

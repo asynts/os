@@ -4,6 +4,7 @@
 #include <Kernel/Interface/System.hpp>
 #include <Kernel/FileSystem/FlashFileSystem.hpp>
 #include <Kernel/FileSystem/MemoryFileSystem.hpp>
+#include <Kernel/Worker.hpp>
 
 namespace Kernel
 {
@@ -139,13 +140,21 @@ namespace Kernel
 
         auto& handle = get_file_handle(fd);
 
+        // FIXME: Join this into one function?
+        Scheduler::the().active_thread().m_blocked = true;
         Worker::the().add_task({
             .m_type = Task::Type::ThreadRead,
-            .m_thread_read = {
-                .m_handle = handle,
-                .m_buffer = { buffer, count },
-                .m_thread = Scheduler::the().active_thread(),
+            .m_data = {
+                .m_thread_read = {
+                    .m_handle = handle,
+                    .m_buffer = { buffer, count },
+                    .m_thread = &Scheduler::the().active_thread(),
+                },
             },
+        });
+
+        execute_in_thread_mode([] {
+            donate_my_remaining_cpu_slice();
         });
 
         // We need to donate remaining CPU time here but without returning

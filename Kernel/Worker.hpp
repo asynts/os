@@ -20,7 +20,7 @@ namespace Kernel
                 Bytes m_buffer;
                 Thread *m_thread;
             } m_thread_read;
-        };
+        } m_data;
     };
 
     // Interrupt handlers can delegate work to this worker such that interrupts
