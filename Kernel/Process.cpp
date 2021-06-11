@@ -138,7 +138,18 @@ namespace Kernel
             dbgln("[Process::sys$read] fd={} buffer={} count={}", fd, buffer, count);
 
         auto& handle = get_file_handle(fd);
-        return handle.read({ buffer, count }).must();
+
+        Worker::the().add_task({
+            .m_type = Task::Type::ThreadRead,
+            .m_thread_read = {
+                .m_handle = handle,
+                .m_buffer = { buffer, count },
+                .m_thread = Scheduler::the().active_thread(),
+            },
+        });
+
+        // We need to donate remaining CPU time here but without returning
+        FIXME();
     }
 
     i32 Process::sys$write(i32 fd, const u8 *buffer, usize count)

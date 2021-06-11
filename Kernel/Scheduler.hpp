@@ -79,6 +79,18 @@ namespace Kernel
         MPU::RASR rasr;
     };
 
+    struct ThreadUnblockInfo {
+        enum class Type {
+            Syscall,
+        } m_type;
+
+        union Data {
+            struct SystemCall {
+                u32 m_retval;
+            } m_syscall;
+        };
+    };
+
     class Thread {
     public:
         Thread(StringView name, Optional<NonnullOwnPtr<Process>> process = {}, Optional<FullRegisterContext*> context = {})
@@ -99,6 +111,17 @@ namespace Kernel
             m_owned_ranges.clear();
         }
 
+        bool m_blocked = false;
+        Optional<ThreadUnblockInfo> m_unblock_info;
+
+        void unblock(ThreadUnblockInfo info)
+        {
+            VERIFY(m_blocked);
+
+            m_unblock_info = info;
+            m_blocked = false;
+        }
+
         Vector<PageRange> m_owned_ranges;
 
         String m_name;
@@ -107,7 +130,6 @@ namespace Kernel
         Vector<Region> m_regions;
         bool m_privileged = false;
         bool m_die_at_next_opportunity = false;
-        bool m_blocked = false;
     };
 
     class SchedulerGuard;
