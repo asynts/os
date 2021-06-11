@@ -3,7 +3,8 @@
 .thumb
 
 .global scheduler_next
-.global syscall_handler
+.global syscall_enter
+.global syscall_return_trampoline
 
 // u8* push_callee_saved_registers(u8 *stack)
 .thumb_func
@@ -69,63 +70,25 @@ isr_pendsv:
 .global isr_svcall
 .thumb_func
 isr_svcall:
+    bx syscall_handler
+
+.global syscall_handler
+.thumb_func
+syscall_handler:
     mrs r0, psp
     isb
 
-    // Extract pointer to call site
-    ldr r2, [r0, #0x18]
-    subs r2, r2, #2
-
-    // Extract SVC argument
-    ldr r2, [r2]
-    movs r3, #0xff
-    ands r2, r2, r3
-
-    beq 2f
-
-1:
-    // SVC 1 is a request to execute a function in handler mode
-
-    // FIXME: We should check if this call came from the kernel but I really
-    //        don't want to do this in assembly.
-
-    ldr r1, [r0, #4]
-    ldr r0, [r0, #0]
-
-    push {lr}
-    blx r1
-    pop {r0}
-    bx r0
-
-2:
-    // SVC 0 is a system call
-
     bl push_callee_saved_registers
 
-    push {r0} // slot for return value
-    push {r0} // saved psp
+    push {r1} // slot for return value
+    push {r1} // saved psp
 
-    // i32 syscall_handler(FullRegisterContext*)
-    blx syscall_handler
+    // void syscall_enter(FullRegisterContext*)
+    blx syscall_enter
 
-    str r0, [sp, #4]
-    pop {r0}
+    // void syscall_return_trampoline(FullRegisterContext*)
+    ldr r1, =syscall_return_trampoline
+    str r1, [sp, #0x18]
 
-    bl pop_callee_saved_registers
-
-    msr psp, r0
-    isb
-
-    pop {r1}
-    str r1, [r0, #0]
-
-    ldr r1, =0xfffffffd
+    ldr r1, =0xfffffff9
     bx r1
-
-
-// void _handler_trampoline(void *argument, void (*function)())
-.global _handler_trampoline
-.thumb_func
-_handler_trampoline:
-    svc #1
-    bx lr

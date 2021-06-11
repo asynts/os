@@ -10,52 +10,51 @@
 
 namespace Kernel
 {
+    struct SystemCall {
+        u32 m_type;
+        Thread *m_thread;
+        union {
+            struct {
+                int m_fd;
+                Bytes m_buffer;
+            } m_read;
+        } m_data;
+    };
+
+    // Implemented in Assembly
     extern "C"
-    i32 syscall_handler(FullRegisterContext *context)
+    void syscall_handler(u32 syscall, TypeErasedValue arg1, TypeErasedValue arg2, TypeErasedValue arg3);
+
+    // Called from Assembly after saving context in system call handler
+    extern "C"
+    void syscall_enter(FullRegisterContext *context)
     {
-        auto *extended_arguments = context->r3.pointer<ExtendedSystemCallArguments>();
-
-        auto& process = Process::active_process();
         auto& thread = Scheduler::the().active_thread();
+        thread.m_blocked = true;
 
-        VERIFY(!thread.m_context.is_valid());
-        thread.m_context = context;
+        // We postpone the processing to quickly allow interrupts again
 
-        i32 return_value;
         if (context->r0.syscall() == _SC_read) {
-            return_value = process.sys$read(context->r1.fd(), context->r2.pointer<u8>(), context->r3.value<usize>());
-        } else if (context->r0.syscall() == _SC_write) {
-            return_value = process.sys$write(context->r1.fd(), context->r2.pointer<const u8>(), context->r3.value<usize>());
-        } else if (context->r0.syscall() == _SC_open) {
-            return_value = process.sys$open(context->r1.cstring(), context->r2.value<u32>(), context->r3.value<u32>());
-        } else if (context->r0.syscall() == _SC_close) {
-            return_value = process.sys$close(context->r1.fd());
-        } else if (context->r0.syscall() == _SC_fstat) {
-            return_value = process.sys$fstat(context->r1.fd(), context->r2.pointer<UserlandFileInfo>());
-        } else if (context->r0.syscall() == _SC_wait) {
-            return_value = process.sys$wait(context->r1.pointer<i32>());
-        } else if (context->r0.syscall() == _SC_exit) {
-            return_value = process.sys$exit(context->r1.value<i32>());
-        } else if (context->r0.syscall() == _SC_chdir) {
-            return_value = process.sys$chdir(context->r1.cstring());
-        } else if (context->r0.syscall() == _SC_posix_spawn) {
-            return_value = process.sys$posix_spawn(
-                context->r1.pointer<i32>(),
-                context->r2.cstring(),
-                extended_arguments->arg3.pointer<const UserlandSpawnFileActions>(),
-                extended_arguments->arg4.pointer<const UserlandSpawnAttributes>(),
-                extended_arguments->arg5.pointer<char*>(),
-                extended_arguments->arg6.pointer<char*>());
-        } else if (context->r0.syscall() == _SC_get_working_directory) {
-            return_value = process.sys$get_working_directory(context->r1.pointer<u8>(), context->r2.pointer<usize>());
+            thread.m_running_system_calls.enqueue({
+                .m_type = _SC_read,
+                .m_thread = &thread,
+                .m_data = {
+                    .m_read = {
+                        .m_fd = context->r1.fd(),
+                        .m_buffer = { context->r2.pointer<u8>(), context->r3.value<usize>() },
+                    },
+                },
+            });
         } else {
-            VERIFY_NOT_REACHED();
+            FIXME();
         }
+    }
 
-        VERIFY(&thread == &Scheduler::the().active_thread());
-        VERIFY(context == thread.m_context.must());
-        thread.m_context.clear();
-
-        return return_value;
+    // Called from Assembly when returning from system call handler. The (previously) active thread is
+    // now blocked and we have to hand over to the scheduler
+    extern "C"
+    void syscall_return_trampoline(FullRegisterContext*)
+    {
+        FIXME();
     }
 }
