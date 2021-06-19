@@ -54,8 +54,6 @@ namespace Kernel
     {
         VERIFY(is_executing_in_handler_mode());
 
-        dbgln("[Scheduler::schedule] m_active_thread={} ({})", m_active_thread, m_active_thread->m_name);
-
         // FIXME: Is this sufficent for multiple cores?
         if (m_queued_threads_lock != nullptr) {
             return *m_queued_threads_lock;
@@ -85,8 +83,6 @@ namespace Kernel
             next = m_default_thread;
         } else {
             for (;;) {
-                dbgln("[Scheduler::schedule] queued: {} (refcount={})", m_queued_threads.front()->m_name, m_queued_threads.front()->refcount());
-
                 next = m_queued_threads.dequeue();
 
                 if (next->m_blocked) {
@@ -96,8 +92,6 @@ namespace Kernel
                 }
             }
         }
-
-        dbgln("[Scheduler::schedule] next={} ({}) refcount={}", next, next->m_name, next->refcount());
 
         if (debug_scheduler)
             dbgln("[Scheduler::schedule] Switching to '{}' ({})", next->m_name, next);
