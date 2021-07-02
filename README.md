@@ -4,9 +4,7 @@
 
 #### Next Version
 
--   In BSB we had the issue that context switches were not syncronized which
-    caused issues sometimes. Ensure that context switching is properly
-    syncronized.
+-   Rename `context_switch_from_thread_mode` to `unstash_context_from_thread_mode`?
 
 #### Bugs
 
