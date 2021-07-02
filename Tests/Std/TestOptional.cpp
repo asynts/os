@@ -83,4 +83,22 @@ TEST_CASE(optional_moving)
     Tests::Tracker::assert(5, 3, 1, 9);
 }
 
+TEST_CASE(optional_move_clears)
+{
+    Std::Optional<int> opt1 = 42;
+
+    Std::Optional<int> opt2 = move(opt1);
+
+    ASSERT(!opt1.is_valid());
+}
+
+TEST_CASE(optional_rvalue_must_clears)
+{
+    Std::Optional<int> opt1 = 42;
+
+    Std::Optional<int> opt2 = move(opt1).must();
+
+    ASSERT(!opt1.is_valid());
+}
+
 TEST_MAIN();

@@ -4,8 +4,6 @@
 
 #### Next Version
 
--   `Optional<T>` should clear source when moving into other object.
-
 -   In BSB we had the issue that context switches were not syncronized which
     caused issues sometimes. Ensure that context switching is properly
     syncronized.
