@@ -28,8 +28,6 @@ namespace Kernel
             if (Scheduler::the().m_enabled)
                 scb_hw->icsr = M0PLUS_ICSR_PENDSVSET_BITS;
         }
-
-        void context_switch_from_thread_mode(FullRegisterContext*);
     }
 
     Scheduler::Scheduler()
@@ -142,7 +140,7 @@ namespace Kernel
         asm volatile("msr control, %0;"
                      "isb;"
                      "mov r0, %1;"
-                     "blx context_switch_from_thread_mode;"
+                     "blx restore_context_from_thread_mode;"
             :
             : "r"(control), "r"(&context)
             : "r0");

@@ -4,8 +4,6 @@
 
 #### Next Version
 
--   Rename `context_switch_from_thread_mode` to `unstash_context_from_thread_mode`?
-
 #### Bugs
 
   - If we do `stat /dev/tty` we get invalid information, because `ConsoleFileHandle` always

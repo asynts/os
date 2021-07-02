@@ -85,10 +85,10 @@ isr_svcall:
     ldr r0, =0xfffffffd
     bx r0
 
-// void context_switch_from_thread_mode(FullRegisterContext*)
-.global context_switch_from_thread_mode
+// void restore_context_from_thread_mode(FullRegisterContext*)
+.global restore_context_from_thread_mode
 .thumb_func
-context_switch_from_thread_mode:
+restore_context_from_thread_mode:
     bl pop_callee_saved_registers
 
     mov sp, r0
