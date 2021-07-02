@@ -40,7 +40,12 @@ namespace Kernel
         template<typename Callback>
         void setup_context(Callback&& callback)
         {
-            auto& stack = m_owned_page_ranges.append(PageAllocator::the().allocate_owned(PageAllocator::stack_power).must());
+            // FIXME: What happens here? We can not coppy 'OwnedPageRange' objects, does this automatically resolve to must()&& ?
+            OwnedPageRange owned_page_range = PageAllocator::the().allocate_owned(PageAllocator::stack_power).must();
+
+            dbgln("[Thread::setup_context] owned_page_range=({}, {})", owned_page_range.data(), owned_page_range.size());
+
+            auto& stack = m_owned_page_ranges.append(move(owned_page_range));
 
             auto& stack_region = m_regions.append({});
             stack_region.rbar.region = 0;

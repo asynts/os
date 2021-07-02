@@ -33,10 +33,17 @@ namespace Kernel
         OwnedPageRange(const OwnedPageRange&) = delete;
         OwnedPageRange(OwnedPageRange&& other)
         {
-            m_range = other.m_range;
-            other.m_range.clear();
+            m_range = move(other.m_range);
         }
         ~OwnedPageRange();
+
+        OwnedPageRange& operator=(const OwnedPageRange&) = delete;
+
+        OwnedPageRange& operator=(OwnedPageRange&& other)
+        {
+            m_range = move(other.m_range);
+            return *this;
+        }
 
         usize size() const { return m_range->size(); }
 
