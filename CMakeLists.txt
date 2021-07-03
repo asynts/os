@@ -34,7 +34,7 @@ add_subdirectory(Userland)
 file(GLOB_RECURSE Kernel_SOURCES CONFIGURE_DEPENDS Kernel/*.cpp Kernel/*.S Std/*.cpp)
 
 add_executable(Kernel.1 ${Kernel_SOURCES})
-target_link_libraries(Kernel.1 pico_stdlib pico_bootrom project_options LibEmbeddedFiles)
+target_link_libraries(Kernel.1 pico_stdlib pico_bootrom hardware_dma project_options LibEmbeddedFiles)
 target_compile_definitions(Kernel.1 PRIVATE KERNEL)
 pico_add_extra_outputs(Kernel.1)
 
