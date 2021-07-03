@@ -12,6 +12,7 @@
 
 namespace Kernel::Interrupt
 {
+    // Configure CHANNEL0 to receive data from UART0 if avaiable
     static void setup_dma()
     {
         constexpr usize buffer_size = 1 * KiB;
@@ -19,32 +20,27 @@ namespace Kernel::Interrupt
 
         auto page_range = PageAllocator::the().allocate(buffer_power).must();
 
-        auto channel = dma_claim_unused_channel(true);
+        auto channel = dma_channel_claim(0);
 
         auto channel_config = dma_channel_get_default_config(channel);
         channel_config_set_transfer_data_size(&channel_config, DMA_SIZE_8);
         channel_config_set_read_increment(&channel_config, false);
         channel_config_set_write_increment(&channel_config, true);
         channel_config_set_ring(&channel_config, true, buffer_power);
-
-        // FIXME: Only enable if UART has something
+        channel_config_set_dreq(&channel_config, DREQ_UART0_RX);
 
         dma_channel_configure(
             channel,
             &channel_config,
             page_range.data(),
             reinterpret_cast<const void*>(uart0_hw->dr),
-            buffer_size, // FIXME: Infinite transfer count?
-            true);
+            1,
+            false);
     }
 
-    UART::UART()
+    // Configure UART0 to enable DMA for receive
+    static void setup_uart()
     {
-
-
-        uart0_hw->dmacr
-        // UARTDMACR.RXDMAE
-
         uart_init(uart0, 115200);
 
         gpio_set_function(PICO_DEFAULT_UART_TX_PIN, GPIO_FUNC_UART);
@@ -54,13 +50,17 @@ namespace Kernel::Interrupt
         //        0xff and 0xfc
         uart_getc(uart0);
 
+        uart_set_fifo_enabled(uart0, false);
 
-        uart_set_fifo_enabled(uart0, true);
+        uart0_hw->dmacr = UART_UARTDMACR_RXDMAE_BITS
+                        | ~UART_UARTDMACR_TXDMAE_BITS
+                        | UART_UARTDMACR_DMAONERR_BITS;
+    }
 
-        irq_set_exclusive_handler(UART0_IRQ, UART::interrupt);
-        irq_set_enabled(UART0_IRQ, true);
-
-        uart_set_irq_enables(uart0, true, false);
+    UART::UART()
+    {
+        setup_dma();
+        setup_uart();
     }
 
     void UART::interrupt()
