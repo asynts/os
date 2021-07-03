@@ -1,5 +1,4 @@
 #include <Kernel/Interrupt/UART.hpp>
-#include <Kernel/PageAllocator.hpp>
 
 #include <hardware/irq.h>
 #include <hardware/uart.h>
@@ -13,33 +12,30 @@
 namespace Kernel::Interrupt
 {
     // Configure CHANNEL0 to receive data from UART0 if avaiable
-    static void setup_dma()
+    void UART::configure_dma()
     {
-        constexpr usize buffer_size = 1 * KiB;
-        constexpr usize buffer_power = power_of_two(buffer_size);
+        dma_channel_claim(input_dma_channel);
 
-        auto page_range = PageAllocator::the().allocate(buffer_power).must();
-
-        auto channel = dma_channel_claim(0);
-
-        auto channel_config = dma_channel_get_default_config(channel);
+        auto channel_config = dma_channel_get_default_config(input_dma_channel);
         channel_config_set_transfer_data_size(&channel_config, DMA_SIZE_8);
         channel_config_set_read_increment(&channel_config, false);
         channel_config_set_write_increment(&channel_config, true);
         channel_config_set_ring(&channel_config, true, buffer_power);
+
+        // FIXME: Does this only trigger one byte read?
         channel_config_set_dreq(&channel_config, DREQ_UART0_RX);
 
         dma_channel_configure(
-            channel,
+            input_dma_channel,
             &channel_config,
-            page_range.data(),
+            m_input_buffer->data(),
             reinterpret_cast<const void*>(uart0_hw->dr),
-            1,
+            m_input_buffer->size(),
             false);
     }
 
     // Configure UART0 to enable DMA for receive
-    static void setup_uart()
+    void UART::configure_uart()
     {
         uart_init(uart0, 115200);
 
@@ -52,34 +48,25 @@ namespace Kernel::Interrupt
 
         uart_set_fifo_enabled(uart0, false);
 
-        uart0_hw->dmacr = UART_UARTDMACR_RXDMAE_BITS
+        uart0_hw->dmacr =  UART_UARTDMACR_RXDMAE_BITS
                         | ~UART_UARTDMACR_TXDMAE_BITS
-                        | UART_UARTDMACR_DMAONERR_BITS;
+                        |  UART_UARTDMACR_DMAONERR_BITS;
     }
 
     UART::UART()
     {
-        setup_dma();
-        setup_uart();
-    }
+        m_input_buffer = PageAllocator::the().allocate_owned(buffer_power).must();
 
-    void UART::interrupt()
-    {
-        if (debug_uart)
-            dbgln("[UART::interrupt]");
-
-        while (uart_is_readable(uart0))
-        {
-            UART::the().m_input_queue.enqueue(uart_getc(uart0));
-        }
+        configure_dma();
+        configure_uart();
     }
 
     KernelResult<usize> UART::read(Bytes bytes)
     {
         usize index;
-        for (index = 0; index < min(bytes.size(), m_input_queue.size()); ++index) {
-            // FIXME: This is not safe
-            bytes[index] = m_input_queue.dequeue();
+        for (index = 0; index < input_buffer_size(); ++index) {
+            bytes[index] = m_input_buffer->bytes()[input_buffer_consume_offset()];
+            ++m_input_buffer_consume_offset_raw;
         }
 
         return index;
@@ -96,5 +83,22 @@ namespace Kernel::Interrupt
         }
 
         return bytes.size();
+    }
+
+    usize UART::input_buffer_consume_offset()
+    {
+        return m_input_buffer_consume_offset_raw % buffer_size;
+    }
+
+    usize UART::input_buffer_avaliable_offset()
+    {
+        VERIFY(dma_channel_hw_addr(input_dma_channel)->write_addr >= uptr(m_input_buffer->data()));
+        return dma_channel_hw_addr(input_dma_channel)->write_addr - uptr(m_input_buffer->data());
+    }
+
+    usize UART::input_buffer_size()
+    {
+        FIXME_ASSERT(input_buffer_avaliable_offset() >= input_buffer_consume_offset());
+        return input_buffer_avaliable_offset() - input_buffer_consume_offset();
     }
 }
