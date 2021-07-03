@@ -50,7 +50,7 @@ namespace Std {
             else
                 return default_;
         }
-        T&& must() &&
+        T must() &&
         {
             VERIFY(is_valid());
 
