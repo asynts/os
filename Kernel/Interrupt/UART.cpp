@@ -48,9 +48,14 @@ namespace Kernel::Interrupt
 
         uart_set_fifo_enabled(uart0, false);
 
+        // FIXME: Configure water mark?
+        // FIXME: Configure what is notified
+
         uart0_hw->dmacr =  UART_UARTDMACR_RXDMAE_BITS
                         | ~UART_UARTDMACR_TXDMAE_BITS
                         |  UART_UARTDMACR_DMAONERR_BITS;
+
+        // FIXME: Global uart configuration enable?
     }
 
     UART::UART()
