@@ -6,41 +6,38 @@
 #include <hardware/structs/uart.h>
 #include <hardware/dma.h>
 
-// FIXME: The queue is not protected, we should setup DMA to automatically
-//        write everything into a buffer
-
 namespace Kernel::Interrupt
 {
-    // Configure CHANNEL0 to read from UART0 into buffer
     void UART::configure_dma()
     {
-        dma_channel_claim(input_dma_channel);
+        const u32 channel = 0;
 
-        auto channel_config = dma_channel_get_default_config(input_dma_channel);
-        channel_config_set_transfer_data_size(&channel_config, DMA_SIZE_8);
-        channel_config_set_read_increment(&channel_config, false);
-        channel_config_set_write_increment(&channel_config, true);
-        channel_config_set_ring(&channel_config, true, buffer_power);
+        // FIXME: Claim
 
-        // FIXME: Somehow, UART0 doesn't send DREQs
-        channel_config_set_dreq(&channel_config, DREQ_UART0_RX);
+        auto config = dma_channel_get_default_config(channel);
+        channel_config_set_transfer_data_size(&config, DMA_SIZE_8);
 
-        // FIXME:   My understanding is that this needs to be triggered which sets DREQ=1
-        //          and will from that point onward only read when something is there. However,
-        //          there is also an enabled bit in the configuration which suggests that it
-        //          should already work?
-        // FIXME:   What do we need to set the size to?
-        // FIXME:   Is 'uart0_hw->dr' actually correct?
+        // The read address is the address of the UART data register which is constant
+        channel_config_set_read_increment(&config, false);
+
+        // Write into a ringbuffer with '2^5=32' elements
+        channel_config_set_write_increment(&config, true);
+        channel_config_set_ring(&config, true, 5);
+
+        // The UART signals when data is avaliable
+        channel_config_set_dreq(&config, DREQ_UART0_RX);
+
+        // Transmit '2^32 - 1' symbols, this should suffice for any practical case,
+        // otherwise, the channel could be triggered again
         dma_channel_configure(
-            input_dma_channel,
-            &channel_config,
+            channel,
+            &config,
             m_input_buffer->data(),
-            reinterpret_cast<const void*>(uart0_hw->dr),
-            m_input_buffer->size(),
+            &uart0_hw->dr,
+            UINT32_MAX,
             true);
     }
 
-    // Configure UART0 to emit DMA signals
     void UART::configure_uart()
     {
         uart_init(uart0, 115200);
@@ -48,24 +45,16 @@ namespace Kernel::Interrupt
         gpio_set_function(PICO_DEFAULT_UART_TX_PIN, GPIO_FUNC_UART);
         gpio_set_function(PICO_DEFAULT_UART_RX_PIN, GPIO_FUNC_UART);
 
-        // FIXME: There seems thre is an initial "junk" byte, I've seen
-        //        0xff and 0xfc
+        // On my system there is one junk byte on boot
         uart_getc(uart0);
-
-        uart_set_fifo_enabled(uart0, false);
-
-        // FIXME: This does not appear to be enough
-        uart0_hw->dmacr =  UART_UARTDMACR_RXDMAE_BITS
-                        | ~UART_UARTDMACR_TXDMAE_BITS
-                        |  UART_UARTDMACR_DMAONERR_BITS;
     }
 
     UART::UART()
     {
         m_input_buffer = PageAllocator::the().allocate_owned(buffer_power).must();
 
-        configure_dma();
         configure_uart();
+        configure_dma();
     }
 
     KernelResult<usize> UART::read(Bytes bytes)
