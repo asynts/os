@@ -11,7 +11,7 @@
 
 namespace Kernel::Interrupt
 {
-    // Configure CHANNEL0 to receive data from UART0 if avaiable
+    // Configure CHANNEL0 to read from UART0 into buffer
     void UART::configure_dma()
     {
         dma_channel_claim(input_dma_channel);
@@ -22,19 +22,25 @@ namespace Kernel::Interrupt
         channel_config_set_write_increment(&channel_config, true);
         channel_config_set_ring(&channel_config, true, buffer_power);
 
-        // FIXME: Does this only trigger one byte read?
+        // FIXME: Somehow, UART0 doesn't send DREQs
         channel_config_set_dreq(&channel_config, DREQ_UART0_RX);
 
+        // FIXME:   My understanding is that this needs to be triggered which sets DREQ=1
+        //          and will from that point onward only read when something is there. However,
+        //          there is also an enabled bit in the configuration which suggests that it
+        //          should already work?
+        // FIXME:   What do we need to set the size to?
+        // FIXME:   Is 'uart0_hw->dr' actually correct?
         dma_channel_configure(
             input_dma_channel,
             &channel_config,
             m_input_buffer->data(),
             reinterpret_cast<const void*>(uart0_hw->dr),
             m_input_buffer->size(),
-            false);
+            true);
     }
 
-    // Configure UART0 to enable DMA for receive
+    // Configure UART0 to emit DMA signals
     void UART::configure_uart()
     {
         uart_init(uart0, 115200);
@@ -42,20 +48,16 @@ namespace Kernel::Interrupt
         gpio_set_function(PICO_DEFAULT_UART_TX_PIN, GPIO_FUNC_UART);
         gpio_set_function(PICO_DEFAULT_UART_RX_PIN, GPIO_FUNC_UART);
 
-        // FIXME: There seems thre is an initial "junk" byte read, I've seen
+        // FIXME: There seems thre is an initial "junk" byte, I've seen
         //        0xff and 0xfc
         uart_getc(uart0);
 
         uart_set_fifo_enabled(uart0, false);
 
-        // FIXME: Configure water mark?
-        // FIXME: Configure what is notified
-
+        // FIXME: This does not appear to be enough
         uart0_hw->dmacr =  UART_UARTDMACR_RXDMAE_BITS
                         | ~UART_UARTDMACR_TXDMAE_BITS
                         |  UART_UARTDMACR_DMAONERR_BITS;
-
-        // FIXME: Global uart configuration enable?
     }
 
     UART::UART()
