@@ -13,6 +13,8 @@
 
 #### Bugs
 
+-   Properly solve circular dependency situation with `KernelMutex`, `Thread` and `PageAllocator`
+
   - If we do `stat /dev/tty` we get invalid information, because `ConsoleFileHandle` always
     returns `ConsoleFile` instead of the actual file.
 

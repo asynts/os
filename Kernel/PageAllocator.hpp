@@ -6,62 +6,63 @@
 #include <Std/Format.hpp>
 
 #include <Kernel/Forward.hpp>
+#include <Kernel/KernelMutex.hpp>
 
 namespace Kernel
 {
     constexpr bool debug_page_allocator = false;
-
-    struct PageRange {
-        usize m_power;
-        uptr m_base;
-
-        const u8* data() const { return reinterpret_cast<const u8*>(m_base); }
-        u8* data() { return reinterpret_cast<u8*>(m_base); }
-
-        usize size() const { return 1 << m_power; }
-
-        ReadonlyBytes bytes() const { return { data(), size() }; }
-        Bytes bytes() { return { data(), size() }; }
-    };
-
-    class OwnedPageRange {
-    public:
-        explicit OwnedPageRange(PageRange range)
-            : m_range(range)
-        {
-        }
-        OwnedPageRange(const OwnedPageRange&) = delete;
-        OwnedPageRange(OwnedPageRange&& other)
-        {
-            m_range = move(other.m_range);
-        }
-        ~OwnedPageRange();
-
-        OwnedPageRange& operator=(const OwnedPageRange&) = delete;
-
-        OwnedPageRange& operator=(OwnedPageRange&& other)
-        {
-            m_range = move(other.m_range);
-            return *this;
-        }
-
-        usize size() const { return m_range->size(); }
-
-        const u8* data() const { return m_range->data(); }
-        u8* data() { return m_range->data(); }
-
-        ReadonlyBytes bytes() const { return m_range->bytes(); }
-        Bytes bytes() { return m_range->bytes(); }
-
-        Optional<PageRange> m_range;
-    };
 
     class PageAllocator : public Singleton<PageAllocator> {
     public:
         static constexpr usize max_power = 18;
         static constexpr usize stack_power = power_of_two(0x800);
 
-        Optional<PageRange> allocate(usize power)
+        Optional<OwnedPageRange> allocate(usize power)
+        {
+            m_mutex.lock();
+            Optional<PageRange> range_opt = allocate_locked(power);
+            m_mutex.unlock();
+
+            if (range_opt.is_valid())
+                return OwnedPageRange { range_opt.value() };
+            else
+                return {};
+        }
+
+        void deallocate(PageRange range)
+        {
+            m_mutex.lock();
+            deallocate_locked(range);
+            m_mutex.unlock();
+        }
+
+        void dump()
+        {
+            if (debug_page_allocator) {
+                dbgln("[PageAllocator] blocks:");
+                for (usize power = 0; power < max_power; ++power) {
+                    dbgln("  [{}]: {}", power, m_blocks[power]);
+                }
+            }
+        }
+
+    private:
+        friend Singleton<PageAllocator>;
+        PageAllocator();
+
+        void deallocate_locked(PageRange range)
+        {
+            if (debug_page_allocator)
+                dbgln("[PageAllocator::deallocate] power={} base={}", range.m_power, range.m_base);
+
+            ASSERT(range.m_power <= max_power);
+
+            auto *block_ptr = reinterpret_cast<Block*>(range.m_base);
+            block_ptr->m_next = m_blocks[range.m_power];
+            m_blocks[range.m_power] = block_ptr;
+        }
+
+        Optional<PageRange> allocate_locked(usize power)
         {
             usize size = 1 << power;
 
@@ -82,53 +83,18 @@ namespace Kernel
 
             ASSERT(power < max_power);
 
-            auto block_opt = allocate(power + 1);
+            auto block_opt = allocate_locked(power + 1);
             if (!block_opt.is_valid()) {
                 return {};
             }
             auto block = block_opt.value();
 
-            deallocate(PageRange{ power, block.m_base + size });
+            deallocate_locked(PageRange{ power, block.m_base + size });
 
             return PageRange { power, block.m_base };
         }
 
-        // FIXME: Remove the other method
-        Optional<OwnedPageRange> allocate_owned(usize power)
-        {
-            auto range_opt = allocate(power);
-
-            if (range_opt.is_valid())
-                return OwnedPageRange { range_opt.value() };
-            else
-                return {};
-        }
-
-        void deallocate(PageRange range)
-        {
-            if (debug_page_allocator)
-                dbgln("[PageAllocator::deallocate] power={} base={}", range.m_power, range.m_base);
-
-            ASSERT(range.m_power <= max_power);
-
-            auto *block_ptr = reinterpret_cast<Block*>(range.m_base);
-            block_ptr->m_next = m_blocks[range.m_power];
-            m_blocks[range.m_power] = block_ptr;
-        }
-
-        void dump()
-        {
-            if (debug_page_allocator) {
-                dbgln("[PageAllocator] blocks:");
-                for (usize power = 0; power < max_power; ++power) {
-                    dbgln("  [{}]: {}", power, m_blocks[power]);
-                }
-            }
-        }
-
-    private:
-        friend Singleton<PageAllocator>;
-        PageAllocator();
+        KernelMutex m_mutex;
 
         // There is quite a bit of trickery going on here:
         //

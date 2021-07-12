@@ -51,7 +51,7 @@ namespace Kernel::Interrupt
 
     UART::UART()
     {
-        m_input_buffer = PageAllocator::the().allocate_owned(buffer_power).must();
+        m_input_buffer = PageAllocator::the().allocate(buffer_power).must();
 
         configure_uart();
         configure_dma();

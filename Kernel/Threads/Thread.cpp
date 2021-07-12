@@ -4,6 +4,7 @@
 #include <Kernel/Process.hpp>
 #include <Kernel/HandlerMode.hpp>
 #include <Kernel/FileSystem/MemoryFileSystem.hpp>
+#include <Kernel/PageAllocator.hpp>
 #include <Kernel/FileSystem/FlashFileSystem.hpp>
 
 namespace Kernel
@@ -24,6 +25,11 @@ namespace Kernel
         flash_region.rasr.attrs_tex = 0b000;
         flash_region.rasr.attrs_ap = 0b111;
         flash_region.rasr.attrs_xn = 0;
+    }
+
+    OwnedPageRange Thread::allocate_stack_via_page_allocator()
+    {
+        return PageAllocator::the().allocate(PageAllocator::stack_power).must());
     }
 
     void Thread::setup_context_impl(StackWrapper stack_wrapper, void (*callback)(void*), void* argument)

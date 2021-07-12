@@ -31,7 +31,7 @@ namespace Kernel
         executable.m_readonly_base = elf.base_as_u32() + readonly_segment.p_offset;
 
         executable.m_writable_size = round_to_power_of_two(writable_segment.p_memsz);
-        auto owned_writable_range = PageAllocator::the().allocate_owned(power_of_two(executable.m_writable_size)).must();
+        auto owned_writable_range = PageAllocator::the().allocate(power_of_two(executable.m_writable_size)).must();
         executable.m_writable_base = owned_writable_range.m_range->m_base;
         VERIFY(owned_writable_range.size() == executable.m_writable_size);
         thread.m_owned_page_ranges.append(move(owned_writable_range));

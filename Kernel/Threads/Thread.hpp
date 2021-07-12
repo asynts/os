@@ -5,7 +5,6 @@
 #include <Std/RefPtr.hpp>
 
 #include <Kernel/Forward.hpp>
-#include <Kernel/PageAllocator.hpp>
 #include <Kernel/SystemHandler.hpp>
 #include <Kernel/MPU.hpp>
 #include <Kernel/StackWrapper.hpp>
@@ -37,10 +36,13 @@ namespace Kernel
 
         static Thread& active();
 
+        // God, I hate circular dependencies PageAllocator -> KernelMutex -> Thread -> PageAllocator
+        OwnedPageRange allocate_stack_via_page_allocator();
+
         template<typename Callback>
         void setup_context(Callback&& callback)
         {
-            auto& stack = m_owned_page_ranges.append(PageAllocator::the().allocate_owned(PageAllocator::stack_power).must());
+            auto& stack = m_owned_page_ranges.append(allocate_stack_via_page_allocator());
 
             auto& stack_region = m_regions.append({});
             stack_region.rbar.region = 0;
