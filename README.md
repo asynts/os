@@ -33,6 +33,8 @@
 
 #### Future features
 
+-   Keep documentation about interrupt safe functions and which functions can be called in which boot stage
+
 -   Add `MemoryAllocator::allocate_eternal` which doesn't create MTRACE logs
 
   - Run inside QEMU

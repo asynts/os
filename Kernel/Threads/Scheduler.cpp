@@ -109,8 +109,9 @@ namespace Kernel
     void Scheduler::trigger()
     {
         VERIFY(m_enabled);
+        VERIFY(is_executing_in_thread_mode());
+
         scb_hw->icsr = M0PLUS_ICSR_PENDSVSET_BITS;
-        VERIFY_NOT_REACHED();
     }
 
     void Scheduler::loop()
